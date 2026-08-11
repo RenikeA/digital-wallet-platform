@@ -1,7 +1,7 @@
 CREATE TABLE wallets (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL,
-    currency CHAR(3) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
     balance NUMERIC NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     version INT NOT NULL DEFAULT 0,

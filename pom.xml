@@ -13,6 +13,7 @@
         <module>wallet-common</module>
         <module>wallet-domain</module>
         <module>wallet-service</module>
+        <module>auth-service</module>
     </modules>
 
     <properties>

@@ -8,8 +8,9 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="wallet-common" />
-        <module name="wallet-service" />
+        <module name="auth-service" />
         <module name="wallet-domain" />
+        <module name="wallet-service" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>

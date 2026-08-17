@@ -1,0 +1,3 @@
+com\walletplatform\authservice\domain\User$UserBuilder.class
+com\walletplatform\authservice\domain\Role.class
+com\walletplatform\authservice\domain\User.class

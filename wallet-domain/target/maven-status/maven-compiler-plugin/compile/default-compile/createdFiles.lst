@@ -1,0 +1,13 @@
+com\walletplatform\repository\LedgerEntryRepository.class
+com\walletplatform\domain\Wallet$WalletBuilder.class
+com\walletplatform\domain\EntryType.class
+com\walletplatform\domain\LedgerEntry$LedgerEntryBuilder.class
+com\walletplatform\domain\LedgerEntry.class
+com\walletplatform\domain\TransactionType.class
+com\walletplatform\repository\TransactionRepository.class
+com\walletplatform\domain\Transaction$TransactionBuilder.class
+com\walletplatform\domain\TransactionStatus.class
+com\walletplatform\domain\Transaction.class
+com\walletplatform\repository\WalletRepository.class
+com\walletplatform\domain\Wallet.class
+com\walletplatform\domain\WalletStatus.class

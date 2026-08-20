@@ -1,2 +1,11 @@
+C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\AuthServiceApplication.java
+C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\config\SecurityConfig.java
+C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\controller\AuthController.java
 C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\domain\Role.java
 C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\domain\User.java
+C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\dto\RegisterRequest.java
+C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\dto\UserResponse.java
+C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\exception\ErrorResponse.java
+C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\exception\GlobalExceptionHandler.java
+C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\repository\UserRepository.java
+C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\service\AuthService.java

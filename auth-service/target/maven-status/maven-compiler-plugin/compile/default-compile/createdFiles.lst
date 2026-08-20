@@ -1,3 +1,10 @@
-com\walletplatform\authservice\domain\User$UserBuilder.class
-com\walletplatform\authservice\domain\Role.class
-com\walletplatform\authservice\domain\User.class
+com\walletplatform\authservice\exception\ErrorResponse.class
+com\walletplatform\authservice\controller\AuthController.class
+com\walletplatform\authservice\dto\UserResponse$UserResponseBuilder.class
+com\walletplatform\authservice\dto\RegisterRequest.class
+com\walletplatform\authservice\repository\UserRepository.class
+com\walletplatform\authservice\exception\GlobalExceptionHandler.class
+com\walletplatform\authservice\dto\UserResponse.class
+com\walletplatform\authservice\AuthServiceApplication.class
+com\walletplatform\authservice\exception\ErrorResponse$ErrorResponseBuilder.class
+com\walletplatform\authservice\service\AuthService.class

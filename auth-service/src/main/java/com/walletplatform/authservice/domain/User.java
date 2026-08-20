@@ -1,4 +1,4 @@
-package com.walletplatform.domain;
+package com.walletplatform.authservice.domain;
 
 import jakarta.persistence.*;
 import lombok.Getter;

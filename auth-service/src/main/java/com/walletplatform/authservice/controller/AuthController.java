@@ -1,10 +1,7 @@
 package com.walletplatform.authservice.controller;
 
 import com.walletplatform.authservice.domain.User;
-import com.walletplatform.authservice.dto.AuthResponse;
-import com.walletplatform.authservice.dto.LoginRequest;
-import com.walletplatform.authservice.dto.RegisterRequest;
-import com.walletplatform.authservice.dto.UserResponse;
+import com.walletplatform.authservice.dto.*;
 import com.walletplatform.authservice.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -37,4 +34,12 @@ public class AuthController {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        AuthResponse response = authService.refreshToken(request);
+        return ResponseEntity.ok(response);
+    }
+
+
 }

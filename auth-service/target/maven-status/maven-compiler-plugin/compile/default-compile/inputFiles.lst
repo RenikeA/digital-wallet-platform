@@ -5,10 +5,12 @@ C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platfor
 C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\domain\User.java
 C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\dto\AuthResponse.java
 C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\dto\LoginRequest.java
+C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\dto\RefreshTokenRequest.java
 C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\dto\RegisterRequest.java
 C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\dto\UserResponse.java
 C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\exception\ErrorResponse.java
 C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\exception\GlobalExceptionHandler.java
 C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\repository\UserRepository.java
+C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\security\JwtAuthFilter.java
 C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\security\JwtService.java
 C:\Users\atinuke\OneDrive\JavaProjects\microservices-demo\digital-wallet-platform\auth-service\src\main\java\com\walletplatform\authservice\service\AuthService.java

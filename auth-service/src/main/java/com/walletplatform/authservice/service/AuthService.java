@@ -4,6 +4,7 @@ import com.walletplatform.authservice.domain.Role;
 import com.walletplatform.authservice.domain.User;
 import com.walletplatform.authservice.dto.AuthResponse;
 import com.walletplatform.authservice.dto.LoginRequest;
+import com.walletplatform.authservice.dto.RefreshTokenRequest;
 import com.walletplatform.authservice.dto.RegisterRequest;
 import com.walletplatform.authservice.repository.UserRepository;
 import com.walletplatform.authservice.security.JwtService;
@@ -54,6 +55,25 @@ public class AuthService {
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .build();
+    }
+
+    public AuthResponse refreshToken(RefreshTokenRequest request) {
+        String email = jwtService.extractEmail(request.getRefreshToken());
+
+        if (!jwtService.isTokenValid(request.getRefreshToken(), email)) {
+            throw new IllegalArgumentException("Invalid or expired refresh token");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User no longer exists"));
+
+        String newAccessToken = jwtService.generateAccessToken(user.getEmail());
+        String newRefreshToken = jwtService.generateRefreshToken(user.getEmail());
+
+        return AuthResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
                 .build();
     }
 }

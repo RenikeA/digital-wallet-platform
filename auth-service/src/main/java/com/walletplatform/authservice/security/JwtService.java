@@ -18,17 +18,28 @@ public class JwtService {
     private static final long REFRESH_TOKEN_EXPIRY = 1000L * 60 * 60 * 24 * 7;
 
     private SecretKey getSigningKey() {
+
         return Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
-    public String generateAccessToken(String email) {
-        return buildToken(email, ACCESS_TOKEN_EXPIRY);
+    public String generateAccessToken(String email, String role) {
+        return Jwts.builder()
+                .subject(email)
+                .claim("role", role)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRY))
+                .signWith(getSigningKey())
+                .compact();
     }
 
     public String generateRefreshToken(String email) {
-        return buildToken(email, REFRESH_TOKEN_EXPIRY);
+        return Jwts.builder()
+                .subject(email)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRY))
+                .signWith(getSigningKey())
+                .compact();
     }
-
     private String buildToken(String email, long expiryMillis) {
         return Jwts.builder()
                 .subject(email)
@@ -58,5 +69,9 @@ public class JwtService {
                 .parseSignedClaims(token)
                 .getPayload();
         return resolver.apply(claims);
+    }
+
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
     }
 }

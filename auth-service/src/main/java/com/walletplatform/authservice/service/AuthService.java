@@ -49,7 +49,7 @@ public class AuthService {
             throw new IllegalArgumentException("Invalid email or password");
         }
 
-        String accessToken = jwtService.generateAccessToken(user.getEmail());
+        String accessToken = jwtService.generateAccessToken(user.getEmail(),user.getRole().name());
         String refreshToken = jwtService.generateRefreshToken(user.getEmail());
 
         return AuthResponse.builder()
@@ -68,7 +68,7 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User no longer exists"));
 
-        String newAccessToken = jwtService.generateAccessToken(user.getEmail());
+        String newAccessToken = jwtService.generateAccessToken(user.getEmail(),user.getRole().name());
         String newRefreshToken = jwtService.generateRefreshToken(user.getEmail());
 
         return AuthResponse.builder()

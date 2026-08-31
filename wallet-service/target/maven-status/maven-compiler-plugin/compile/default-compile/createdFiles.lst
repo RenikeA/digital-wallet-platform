@@ -1,1 +1,6 @@
+com\walletplatform\walletservice\dto\WalletResponse.class
+com\walletplatform\walletservice\dto\WalletResponse$WalletResponseBuilder.class
+com\walletplatform\walletservice\service\WalletService.class
+com\walletplatform\walletservice\controller\WalletController.class
+com\walletplatform\walletservice\dto\CreateWalletRequest.class
 com\walletplatform\walletservice\WalletServiceApplication.class

@@ -6,7 +6,7 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import org.hibernate.resource.transaction.spi.TransactionStatus;
+
 
 import java.time.LocalDateTime;
 import java.util.UUID;

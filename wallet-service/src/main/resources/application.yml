@@ -20,7 +20,7 @@ server:
   port: 8082
 
 jwt:
-  secret: ${JWT_SECRET:dev-only-placeholder-not-a-real-secret}
+  secret: ${JWT_SECRET}
 
 logging:
   level:

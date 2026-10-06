@@ -4,7 +4,7 @@ import org.springframework.http.HttpStatus;
 
 import java.time.Instant;
 
-/** Error body with the same shape as Spring Boot's default error response, plus a message. */
+
 public record ApiError(Instant timestamp, int status, String error, String message, String path) {
 
     public static ApiError of(HttpStatus status, String message, String path) {

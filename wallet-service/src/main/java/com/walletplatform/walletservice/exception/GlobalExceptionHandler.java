@@ -34,4 +34,9 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ApiError> build(HttpStatus status, String message, HttpServletRequest request) {
         return ResponseEntity.status(status).body(ApiError.of(status, message, request.getRequestURI()));
     }
+
+    @ExceptionHandler(InsufficientFundsException.class)
+    public ResponseEntity<ApiError> handleInsufficientFunds(InsufficientFundsException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
+    }
 }

@@ -12,7 +12,9 @@ import com.walletplatform.repository.TransactionRepository;
 import com.walletplatform.repository.WalletRepository;
 import com.walletplatform.walletservice.dto.CreateWalletRequest;
 import com.walletplatform.walletservice.dto.DepositRequest;
+import com.walletplatform.walletservice.dto.WithdrawRequest;
 import com.walletplatform.walletservice.exception.IdempotencyKeyConflictException;
+import com.walletplatform.walletservice.exception.InsufficientFundsException;
 import com.walletplatform.walletservice.exception.WalletNotActiveException;
 import com.walletplatform.walletservice.exception.WalletNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -98,6 +100,65 @@ public class WalletService {
         ledgerEntryRepository.save(ledgerEntry);
 
         // 6. Update wallet balance and save
+        wallet.setBalance(newBalance);
+        return walletRepository.save(wallet);
+    }
+    @Transactional
+    public Wallet withdraw(WithdrawRequest request) {
+
+        // 1. Find the wallet by ID, throw if not found
+        Wallet wallet = walletRepository.findById(request.getWalletId())
+                .orElseThrow(() -> new WalletNotFoundException(request.getWalletId()));
+
+        // 2. Idempotency: a retry with an already-used key returns the wallet
+        Optional<Transaction> existing = transactionRepository.findByIdempotencyKey(request.getIdempotencyKey());
+        if (existing.isPresent()) {
+            boolean sameWithdrawal = existing.get().getType() == TransactionType.WITHDRAWAL
+                    && ledgerEntryRepository.findByTransaction(existing.get()).stream()
+                    .anyMatch(entry -> entry.getWallet().getId().equals(wallet.getId())
+                            && entry.getAmount().compareTo(request.getAmount()) == 0);
+            if (!sameWithdrawal) {
+                throw new IdempotencyKeyConflictException(request.getIdempotencyKey());
+            }
+            return wallet;
+        }
+
+        // 3. Check the wallet is ACTIVE
+        if (wallet.getStatus() != WalletStatus.ACTIVE) {
+            throw new WalletNotActiveException(wallet.getStatus());
+        }
+
+        // 4. Check there are enough funds
+        if (wallet.getBalance().compareTo(request.getAmount()) < 0) {
+            throw new InsufficientFundsException(wallet.getBalance(), request.getAmount());
+        }
+
+        // 5. Work out the new balance, subtract this time
+        BigDecimal newBalance = wallet.getBalance().subtract(request.getAmount());
+
+        // 6. Save the Transaction with type WITHDRAWAL
+        Transaction transaction = Transaction.builder()
+                .id(UUID.randomUUID())
+                .type(TransactionType.WITHDRAWAL)
+                .status(TransactionStatus.COMPLETED)
+                .idempotencyKey(request.getIdempotencyKey())
+                .createdAt(LocalDateTime.now())
+                .build();
+        transactionRepository.save(transaction);
+
+        // 7. Save the LedgerEntry with type DEBIT
+        LedgerEntry ledgerEntry = LedgerEntry.builder()
+                .id(UUID.randomUUID())
+                .wallet(wallet)
+                .transaction(transaction)
+                .entryType(EntryType.DEBIT)
+                .amount(request.getAmount())
+                .balanceAfter(newBalance)
+                .createdAt(LocalDateTime.now())
+                .build();
+        ledgerEntryRepository.save(ledgerEntry);
+
+        // 8. Update the wallet balance and save
         wallet.setBalance(newBalance);
         return walletRepository.save(wallet);
     }

@@ -4,6 +4,7 @@ import com.walletplatform.domain.Wallet;
 import com.walletplatform.walletservice.dto.CreateWalletRequest;
 import com.walletplatform.walletservice.dto.DepositRequest;
 import com.walletplatform.walletservice.dto.WalletResponse;
+import com.walletplatform.walletservice.dto.WithdrawRequest;
 import com.walletplatform.walletservice.service.WalletService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,22 @@ public class WalletController {
     @PostMapping("/deposit")
     public ResponseEntity<WalletResponse> deposit(@Valid @RequestBody DepositRequest request) {
         Wallet wallet = walletService.deposit(request);
+
+        WalletResponse response = WalletResponse.builder()
+                .id(wallet.getId())
+                .userId(wallet.getUserId())
+                .currency(wallet.getCurrency())
+                .balance(wallet.getBalance())
+                .status(wallet.getStatus())
+                .createdAt(wallet.getCreatedAt())
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/withdraw")
+    public ResponseEntity<WalletResponse> withdraw(@Valid @RequestBody WithdrawRequest request) {
+        Wallet wallet = walletService.withdraw(request);
 
         WalletResponse response = WalletResponse.builder()
                 .id(wallet.getId())

@@ -1,10 +1,7 @@
 package com.walletplatform.walletservice.controller;
 
 import com.walletplatform.domain.Wallet;
-import com.walletplatform.walletservice.dto.CreateWalletRequest;
-import com.walletplatform.walletservice.dto.DepositRequest;
-import com.walletplatform.walletservice.dto.WalletResponse;
-import com.walletplatform.walletservice.dto.WithdrawRequest;
+import com.walletplatform.walletservice.dto.*;
 import com.walletplatform.walletservice.service.WalletService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -65,4 +62,20 @@ public class WalletController {
 
         return ResponseEntity.ok(response);
     }
+    @PostMapping("/transfer")
+    public ResponseEntity<WalletResponse> transfer(@Valid @RequestBody TransferRequest request) {
+        Wallet wallet = walletService.transfer(request);
+
+        WalletResponse response = WalletResponse.builder()
+                .id(wallet.getId())
+                .userId(wallet.getUserId())
+                .currency(wallet.getCurrency())
+                .balance(wallet.getBalance())
+                .status(wallet.getStatus())
+                .createdAt(wallet.getCreatedAt())
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
 }

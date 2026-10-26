@@ -39,4 +39,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleInsufficientFunds(InsufficientFundsException ex, HttpServletRequest request) {
         return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
     }
+
+    @ExceptionHandler(SameWalletTransferException.class)
+    public ResponseEntity<ApiError> handleSameWalletTransfer(SameWalletTransferException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(CurrencyMismatchException.class)
+    public ResponseEntity<ApiError> handleCurrencyMismatch(CurrencyMismatchException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
+    }
 }

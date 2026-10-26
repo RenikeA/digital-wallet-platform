@@ -12,17 +12,16 @@ import com.walletplatform.repository.TransactionRepository;
 import com.walletplatform.repository.WalletRepository;
 import com.walletplatform.walletservice.dto.CreateWalletRequest;
 import com.walletplatform.walletservice.dto.DepositRequest;
+import com.walletplatform.walletservice.dto.TransferRequest;
 import com.walletplatform.walletservice.dto.WithdrawRequest;
-import com.walletplatform.walletservice.exception.IdempotencyKeyConflictException;
-import com.walletplatform.walletservice.exception.InsufficientFundsException;
-import com.walletplatform.walletservice.exception.WalletNotActiveException;
-import com.walletplatform.walletservice.exception.WalletNotFoundException;
+import com.walletplatform.walletservice.exception.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 @Service
@@ -161,5 +160,107 @@ public class WalletService {
         // 8. Update the wallet balance and save
         wallet.setBalance(newBalance);
         return walletRepository.save(wallet);
+    }
+
+    @Transactional
+    public Wallet transfer(TransferRequest request) {
+
+        // 1. Source and destination must be different wallets
+        if (request.getSourceWalletId().equals(request.getDestinationWalletId())) {
+            throw new SameWalletTransferException();
+        }
+
+        // 2. Find both wallets
+        Wallet sourceWallet = walletRepository.findById(request.getSourceWalletId())
+                .orElseThrow(() -> new WalletNotFoundException(request.getSourceWalletId()));
+        Wallet destinationWallet = walletRepository.findById(request.getDestinationWalletId())
+                .orElseThrow(() -> new WalletNotFoundException(request.getDestinationWalletId()));
+
+        // 3. Idempotency: the same key with the same transfer returns the source wallet
+        Optional<Transaction> existing = transactionRepository.findByIdempotencyKey(request.getIdempotencyKey());
+        if (existing.isPresent()) {
+            List<LedgerEntry> entries = ledgerEntryRepository.findByTransaction(existing.get());
+
+            boolean debitMatches = entries.stream().anyMatch(entry ->
+                    entry.getEntryType() == EntryType.DEBIT
+                            && entry.getWallet().getId().equals(sourceWallet.getId())
+                            && entry.getAmount().compareTo(request.getAmount()) == 0);
+
+            boolean creditMatches = entries.stream().anyMatch(entry ->
+                    entry.getEntryType() == EntryType.CREDIT
+                            && entry.getWallet().getId().equals(destinationWallet.getId())
+                            && entry.getAmount().compareTo(request.getAmount()) == 0);
+
+            boolean sameTransfer = existing.get().getType() == TransactionType.TRANSFER
+                    && debitMatches && creditMatches;
+
+            if (!sameTransfer) {
+                throw new IdempotencyKeyConflictException(request.getIdempotencyKey());
+            }
+            return sourceWallet;
+        }
+
+        // 4. Both wallets must be ACTIVE
+        if (sourceWallet.getStatus() != WalletStatus.ACTIVE) {
+            throw new WalletNotActiveException(sourceWallet.getStatus());
+        }
+        if (destinationWallet.getStatus() != WalletStatus.ACTIVE) {
+            throw new WalletNotActiveException(destinationWallet.getStatus());
+        }
+
+        // 5. Both wallets must use the same currency
+        if (!sourceWallet.getCurrency().equals(destinationWallet.getCurrency())) {
+            throw new CurrencyMismatchException(sourceWallet.getCurrency(), destinationWallet.getCurrency());
+        }
+
+        // 6. The source wallet must have enough money
+        if (sourceWallet.getBalance().compareTo(request.getAmount()) < 0) {
+            throw new InsufficientFundsException(sourceWallet.getBalance(), request.getAmount());
+        }
+
+        // 7. Work out both new balances
+        BigDecimal sourceNewBalance = sourceWallet.getBalance().subtract(request.getAmount());
+        BigDecimal destinationNewBalance = destinationWallet.getBalance().add(request.getAmount());
+
+        // 8. Save ONE transaction and TWO ledger entries
+        Transaction transaction = Transaction.builder()
+                .id(UUID.randomUUID())
+                .type(TransactionType.TRANSFER)
+                .status(TransactionStatus.COMPLETED)
+                .idempotencyKey(request.getIdempotencyKey())
+                .createdAt(LocalDateTime.now())
+                .build();
+        transactionRepository.save(transaction);
+
+        LedgerEntry debitEntry = LedgerEntry.builder()
+                .id(UUID.randomUUID())
+                .wallet(sourceWallet)
+                .transaction(transaction)
+                .entryType(EntryType.DEBIT)
+                .amount(request.getAmount())
+                .balanceAfter(sourceNewBalance)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        LedgerEntry creditEntry = LedgerEntry.builder()
+                .id(UUID.randomUUID())
+                .wallet(destinationWallet)
+                .transaction(transaction)
+                .entryType(EntryType.CREDIT)
+                .amount(request.getAmount())
+                .balanceAfter(destinationNewBalance)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        ledgerEntryRepository.save(debitEntry);
+        ledgerEntryRepository.save(creditEntry);
+
+        // 9. Update both wallet balances
+        sourceWallet.setBalance(sourceNewBalance);
+        destinationWallet.setBalance(destinationNewBalance);
+        walletRepository.save(sourceWallet);
+        walletRepository.save(destinationWallet);
+
+        return sourceWallet;
     }
 }

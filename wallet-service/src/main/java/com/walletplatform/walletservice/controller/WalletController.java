@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/wallets")
 @RequiredArgsConstructor
@@ -51,22 +53,22 @@ public class WalletController {
     public ResponseEntity<WalletResponse> withdraw(@Valid @RequestBody WithdrawRequest request) {
         Wallet wallet = walletService.withdraw(request);
 
-        WalletResponse response = WalletResponse.builder()
-                .id(wallet.getId())
-                .userId(wallet.getUserId())
-                .currency(wallet.getCurrency())
-                .balance(wallet.getBalance())
-                .status(wallet.getStatus())
-                .createdAt(wallet.getCreatedAt())
-                .build();
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(toResponse(walletService.withdraw(request)));
     }
     @PostMapping("/transfer")
     public ResponseEntity<WalletResponse> transfer(@Valid @RequestBody TransferRequest request) {
         Wallet wallet = walletService.transfer(request);
 
-        WalletResponse response = WalletResponse.builder()
+        return ResponseEntity.ok(toResponse(walletService.transfer(request)));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<WalletResponse> getWallet(@PathVariable("id") UUID id) {
+        return ResponseEntity.ok(toResponse(walletService.getWallet(id)));
+    }
+
+    private WalletResponse toResponse(Wallet wallet) {
+        return WalletResponse.builder()
                 .id(wallet.getId())
                 .userId(wallet.getUserId())
                 .currency(wallet.getCurrency())
@@ -74,8 +76,5 @@ public class WalletController {
                 .status(wallet.getStatus())
                 .createdAt(wallet.getCreatedAt())
                 .build();
-
-        return ResponseEntity.ok(response);
     }
-
 }

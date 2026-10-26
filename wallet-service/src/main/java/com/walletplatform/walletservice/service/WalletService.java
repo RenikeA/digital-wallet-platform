@@ -263,4 +263,10 @@ public class WalletService {
 
         return sourceWallet;
     }
+
+    @Transactional(readOnly = true)
+    public Wallet getWallet(UUID id) {
+        return walletRepository.findById(id)
+                .orElseThrow(() -> new WalletNotFoundException(id));
+    }
 }

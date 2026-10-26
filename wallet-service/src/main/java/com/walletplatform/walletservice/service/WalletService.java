@@ -10,12 +10,13 @@ import com.walletplatform.domain.WalletStatus;
 import com.walletplatform.repository.LedgerEntryRepository;
 import com.walletplatform.repository.TransactionRepository;
 import com.walletplatform.repository.WalletRepository;
-import com.walletplatform.walletservice.dto.CreateWalletRequest;
-import com.walletplatform.walletservice.dto.DepositRequest;
-import com.walletplatform.walletservice.dto.TransferRequest;
-import com.walletplatform.walletservice.dto.WithdrawRequest;
+import com.walletplatform.walletservice.dto.*;
 import com.walletplatform.walletservice.exception.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -268,5 +269,23 @@ public class WalletService {
     public Wallet getWallet(UUID id) {
         return walletRepository.findById(id)
                 .orElseThrow(() -> new WalletNotFoundException(id));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<LedgerEntryResponse> getTransactions(UUID walletId, int page, int size) {
+        walletRepository.findById(walletId)
+                .orElseThrow(() -> new WalletNotFoundException(walletId));
+
+        int safeSize = Math.min(size, 100);
+        Pageable pageable = PageRequest.of(page, safeSize, Sort.by("createdAt").descending());
+
+        return ledgerEntryRepository.findByWalletId(walletId, pageable)
+                .map(entry -> new LedgerEntryResponse(
+                        entry.getId(),
+                        entry.getTransaction().getId(),
+                        entry.getEntryType(),
+                        entry.getAmount(),
+                        entry.getBalanceAfter(),
+                        entry.getCreatedAt()));
     }
 }

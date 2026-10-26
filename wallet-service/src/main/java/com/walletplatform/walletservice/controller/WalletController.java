@@ -5,6 +5,7 @@ import com.walletplatform.walletservice.dto.*;
 import com.walletplatform.walletservice.service.WalletService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -65,6 +66,14 @@ public class WalletController {
     @GetMapping("/{id}")
     public ResponseEntity<WalletResponse> getWallet(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(toResponse(walletService.getWallet(id)));
+    }
+
+    @GetMapping("/{id}/transactions")
+    public ResponseEntity< Page<LedgerEntryResponse>> getTransactions(
+            @PathVariable("id") UUID id,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(walletService.getTransactions(id, page, size));
     }
 
     private WalletResponse toResponse(Wallet wallet) {

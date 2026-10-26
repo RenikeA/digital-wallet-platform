@@ -1,5 +1,6 @@
 package com.walletplatform.walletservice.controller;
 
+import com.walletplatform.domain.EntryType;
 import com.walletplatform.domain.Wallet;
 import com.walletplatform.walletservice.dto.*;
 import com.walletplatform.walletservice.service.WalletService;
@@ -71,9 +72,10 @@ public class WalletController {
     @GetMapping("/{id}/transactions")
     public ResponseEntity< Page<LedgerEntryResponse>> getTransactions(
             @PathVariable("id") UUID id,
+            @RequestParam(name = "type", required = false) EntryType type,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size) {
-        return ResponseEntity.ok(walletService.getTransactions(id, page, size));
+        return ResponseEntity.ok(walletService.getTransactions(id,type, page, size));
     }
 
     private WalletResponse toResponse(Wallet wallet) {

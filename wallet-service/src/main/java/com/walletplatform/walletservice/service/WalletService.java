@@ -272,14 +272,21 @@ public class WalletService {
     }
 
     @Transactional(readOnly = true)
-    public Page<LedgerEntryResponse> getTransactions(UUID walletId, int page, int size) {
+    public Page<LedgerEntryResponse> getTransactions(UUID walletId, EntryType type, int page, int size) {
         walletRepository.findById(walletId)
                 .orElseThrow(() -> new WalletNotFoundException(walletId));
 
         int safeSize = Math.min(size, 100);
         Pageable pageable = PageRequest.of(page, safeSize, Sort.by("createdAt").descending());
 
-        return ledgerEntryRepository.findByWalletId(walletId, pageable)
+        Page<LedgerEntry> entries;
+        if (type == null) {
+            entries = ledgerEntryRepository.findByWalletId(walletId, pageable);
+        } else {
+            entries = ledgerEntryRepository.findByWalletIdAndEntryType(walletId, type, pageable);
+        }
+
+        return entries
                 .map(entry -> new LedgerEntryResponse(
                         entry.getId(),
                         entry.getTransaction().getId(),

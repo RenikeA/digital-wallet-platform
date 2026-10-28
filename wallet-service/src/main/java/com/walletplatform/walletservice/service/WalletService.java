@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -272,18 +273,21 @@ public class WalletService {
     }
 
     @Transactional(readOnly = true)
-    public Page<LedgerEntryResponse> getTransactions(UUID walletId, EntryType type, int page, int size) {
+    public Page<LedgerEntryResponse> getTransactions(UUID walletId, EntryType type, LocalDate from, LocalDate to, int page, int size) {
         walletRepository.findById(walletId)
                 .orElseThrow(() -> new WalletNotFoundException(walletId));
 
         int safeSize = Math.min(size, 100);
         Pageable pageable = PageRequest.of(page, safeSize, Sort.by("createdAt").descending());
-
         Page<LedgerEntry> entries;
-        if (type == null) {
-            entries = ledgerEntryRepository.findByWalletId(walletId, pageable);
-        } else {
+        if (from != null && to != null) {
+            LocalDateTime start = from.atStartOfDay();
+            LocalDateTime end = to.plusDays(1).atStartOfDay();
+            entries = ledgerEntryRepository.findByWalletIdAndCreatedAtBetween(walletId, start, end, pageable);
+        } else if (type != null) {
             entries = ledgerEntryRepository.findByWalletIdAndEntryType(walletId, type, pageable);
+        } else {
+            entries = ledgerEntryRepository.findByWalletId(walletId, pageable);
         }
 
         return entries

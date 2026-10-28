@@ -7,10 +7,12 @@ import com.walletplatform.walletservice.service.WalletService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @RestController
@@ -73,9 +75,11 @@ public class WalletController {
     public ResponseEntity< Page<LedgerEntryResponse>> getTransactions(
             @PathVariable("id") UUID id,
             @RequestParam(name = "type", required = false) EntryType type,
+            @RequestParam(name = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(name = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size) {
-        return ResponseEntity.ok(walletService.getTransactions(id,type, page, size));
+        return ResponseEntity.ok(walletService.getTransactions(id,type,from, to, page, size));
     }
 
     private WalletResponse toResponse(Wallet wallet) {

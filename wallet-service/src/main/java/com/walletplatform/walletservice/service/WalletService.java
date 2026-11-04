@@ -302,4 +302,58 @@ public class WalletService {
                         entry.getBalanceAfter(),
                         entry.getCreatedAt()));
     }
+
+    @Transactional(readOnly = true)
+    public StatementResponse getStatement(UUID walletId, LocalDate from, LocalDate to) {
+        Wallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new WalletNotFoundException(walletId));
+
+        if (from.isAfter(to)) {
+            throw new InvalidDateRangeException();
+        }
+
+        LocalDateTime start = from.atStartOfDay();
+        LocalDateTime end = to.plusDays(1).atStartOfDay();
+
+        // entries inside the period, oldest first
+        Specification<LedgerEntry> inPeriod = LedgerEntrySpecifications.forWallet(walletId)
+                .and(LedgerEntrySpecifications.createdFrom(start))
+                .and(LedgerEntrySpecifications.createdBefore(end));
+        List<LedgerEntry> entries = ledgerEntryRepository.findAll(inPeriod, Sort.by("createdAt").ascending());
+
+        // opening balance: balanceAfter of the last entry before the period, or 0 if there is none
+        Specification<LedgerEntry> before = LedgerEntrySpecifications.forWallet(walletId)
+                .and(LedgerEntrySpecifications.createdBefore(start));
+        Pageable latestOnly = PageRequest.of(0, 1, Sort.by("createdAt").descending());
+        BigDecimal openingBalance = ledgerEntryRepository.findAll(before, latestOnly)
+                .getContent().stream()
+                .findFirst()
+                .map(LedgerEntry::getBalanceAfter)
+                .orElse(BigDecimal.ZERO);
+
+        BigDecimal totalCredits = entries.stream()
+                .filter(e -> e.getEntryType() == EntryType.CREDIT)
+                .map(LedgerEntry::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalDebits = entries.stream()
+                .filter(e -> e.getEntryType() == EntryType.DEBIT)
+                .map(LedgerEntry::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal closingBalance = openingBalance.add(totalCredits).subtract(totalDebits);
+
+        List<LedgerEntryResponse> entryResponses = entries.stream()
+                .map(e -> new LedgerEntryResponse(
+                        e.getId(),
+                        e.getTransaction().getId(),
+                        e.getEntryType(),
+                        e.getAmount(),
+                        e.getBalanceAfter(),
+                        e.getCreatedAt()))
+                .toList();
+
+        return new StatementResponse(walletId, wallet.getCurrency(), from, to,
+                openingBalance, totalCredits, totalDebits, closingBalance, entryResponses);
+    }
 }

@@ -49,4 +49,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleCurrencyMismatch(CurrencyMismatchException ex, HttpServletRequest request) {
         return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
     }
+
+    @ExceptionHandler(InvalidDateRangeException.class)
+    public ResponseEntity<ApiError> handleInvalidDateRange(InvalidDateRangeException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
 }

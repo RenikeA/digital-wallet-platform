@@ -82,6 +82,14 @@ public class WalletController {
         return ResponseEntity.ok(walletService.getTransactions(id,type,from, to, page, size));
     }
 
+    @GetMapping("/{id}/statement")
+    public ResponseEntity<StatementResponse> getStatement(
+            @PathVariable("id") UUID id,
+            @RequestParam(name = "from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(name = "to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(walletService.getStatement(id, from, to));
+    }
+
     private WalletResponse toResponse(Wallet wallet) {
         return WalletResponse.builder()
                 .id(wallet.getId())

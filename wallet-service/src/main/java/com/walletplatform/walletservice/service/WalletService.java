@@ -12,11 +12,13 @@ import com.walletplatform.repository.TransactionRepository;
 import com.walletplatform.repository.WalletRepository;
 import com.walletplatform.walletservice.dto.*;
 import com.walletplatform.walletservice.exception.*;
+import com.walletplatform.walletservice.specifications.LedgerEntrySpecifications;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -279,18 +281,19 @@ public class WalletService {
 
         int safeSize = Math.min(size, 100);
         Pageable pageable = PageRequest.of(page, safeSize, Sort.by("createdAt").descending());
-        Page<LedgerEntry> entries;
-        if (from != null && to != null) {
-            LocalDateTime start = from.atStartOfDay();
-            LocalDateTime end = to.plusDays(1).atStartOfDay();
-            entries = ledgerEntryRepository.findByWalletIdAndCreatedAtBetween(walletId, start, end, pageable);
-        } else if (type != null) {
-            entries = ledgerEntryRepository.findByWalletIdAndEntryType(walletId, type, pageable);
-        } else {
-            entries = ledgerEntryRepository.findByWalletId(walletId, pageable);
+
+        Specification<LedgerEntry> spec = LedgerEntrySpecifications.forWallet(walletId);
+        if (type != null) {
+            spec = spec.and(LedgerEntrySpecifications.hasType(type));
+        }
+        if (from != null) {
+            spec = spec.and(LedgerEntrySpecifications.createdFrom(from.atStartOfDay()));
+        }
+        if (to != null) {
+            spec = spec.and(LedgerEntrySpecifications.createdBefore(to.plusDays(1).atStartOfDay()));
         }
 
-        return entries
+        return ledgerEntryRepository.findAll(spec, pageable)
                 .map(entry -> new LedgerEntryResponse(
                         entry.getId(),
                         entry.getTransaction().getId(),

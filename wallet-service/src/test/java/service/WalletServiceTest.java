@@ -1,0 +1,153 @@
+package service;
+
+import com.walletplatform.domain.*;
+import com.walletplatform.repository.LedgerEntryRepository;
+import com.walletplatform.repository.TransactionRepository;
+import com.walletplatform.repository.WalletRepository;
+import com.walletplatform.walletservice.dto.TransferRequest;
+import com.walletplatform.walletservice.dto.WithdrawRequest;
+import com.walletplatform.walletservice.exception.CurrencyMismatchException;
+import com.walletplatform.walletservice.exception.InsufficientFundsException;
+import com.walletplatform.walletservice.exception.SameWalletTransferException;
+import com.walletplatform.walletservice.service.WalletService;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class WalletServiceTest {
+
+    @Mock private WalletRepository walletRepository;
+    @Mock private TransactionRepository transactionRepository;
+    @Mock private LedgerEntryRepository ledgerEntryRepository;
+
+    @InjectMocks private WalletService walletService;
+
+    @Test
+    void withdraw_whenBalanceTooLow_throwsInsufficientFunds() {
+        UUID walletId = UUID.randomUUID();
+        Wallet wallet = Wallet.builder()
+                .id(walletId)
+                .currency("NGN")
+                .balance(new BigDecimal("100.00"))
+                .status(WalletStatus.ACTIVE)
+                .build();
+
+        when(walletRepository.findById(walletId)).thenReturn(Optional.of(wallet));
+        when(transactionRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.empty());
+
+        WithdrawRequest request = new WithdrawRequest(walletId, new BigDecimal("500.00"), "key-1");
+
+        assertThrows(InsufficientFundsException.class, () -> walletService.withdraw(request));
+        verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void transfer_whenSameWallet_throwsSameWalletTransferException() {
+        UUID walletId = UUID.randomUUID();
+
+        TransferRequest request = new TransferRequest(walletId, walletId, new BigDecimal("100.00"), "key-2");
+
+        assertThrows(SameWalletTransferException.class, () -> walletService.transfer(request));
+    }
+
+    @Test
+    void transfer_whenCurrenciesDiffer_throwsCurrencyMismatchException() {
+        UUID sourceId = UUID.randomUUID();
+        UUID destinationId = UUID.randomUUID();
+
+        Wallet sourceWallet = Wallet.builder()
+                .id(sourceId)
+                .currency("NGN")
+                .balance(new BigDecimal("1000.00"))
+                .status(WalletStatus.ACTIVE)
+                .build();
+
+        Wallet destinationWallet = Wallet.builder()
+                .id(destinationId)
+                .currency("USD")
+                .balance(new BigDecimal("1000.00"))
+                .status(WalletStatus.ACTIVE)
+                .build();
+
+        when(walletRepository.findById(sourceId)).thenReturn(Optional.of(sourceWallet));
+        when(walletRepository.findById(destinationId)).thenReturn(Optional.of(destinationWallet));
+        when(transactionRepository.findByIdempotencyKey("key-3")).thenReturn(Optional.empty());
+
+        TransferRequest request = new TransferRequest(sourceId, destinationId, new BigDecimal("100.00"), "key-3");
+
+        assertThrows(CurrencyMismatchException.class, () -> walletService.transfer(request));
+        verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void transfer_whenIdempotencyKeyAlreadyUsed_returnsExistingResultWithoutMovingMoneyAgain() {
+        UUID sourceId = UUID.randomUUID();
+        UUID destinationId = UUID.randomUUID();
+
+        Wallet sourceWallet = Wallet.builder()
+                .id(sourceId)
+                .currency("NGN")
+                .balance(new BigDecimal("1000.00"))
+                .status(WalletStatus.ACTIVE)
+                .build();
+
+        Wallet destinationWallet = Wallet.builder()
+                .id(destinationId)
+                .currency("NGN")
+                .balance(new BigDecimal("1000.00"))
+                .status(WalletStatus.ACTIVE)
+                .build();
+
+        when(walletRepository.findById(sourceId)).thenReturn(Optional.of(sourceWallet));
+        when(walletRepository.findById(destinationId)).thenReturn(Optional.of(destinationWallet));
+
+        Transaction existingTransaction = Transaction.builder()
+                .id(UUID.randomUUID())
+                .type(TransactionType.TRANSFER)
+                .idempotencyKey("key-4")
+                .build();
+
+        LedgerEntry debitEntry = LedgerEntry.builder()
+                .transaction(existingTransaction)
+                .wallet(sourceWallet)
+                .amount(new BigDecimal("100.00"))
+                .entryType(EntryType.DEBIT)
+                .build();
+
+        LedgerEntry creditEntry = LedgerEntry.builder()
+                .transaction(existingTransaction)
+                .wallet(destinationWallet)
+                .amount(new BigDecimal("100.00"))
+                .entryType(EntryType.CREDIT)
+                .build();
+
+        when(transactionRepository.findByIdempotencyKey("key-4"))
+                .thenReturn(Optional.of(existingTransaction));
+        when(ledgerEntryRepository.findByTransaction(existingTransaction))
+                .thenReturn(List.of(debitEntry, creditEntry));
+
+        TransferRequest request = new TransferRequest(sourceId, destinationId, new BigDecimal("100.00"), "key-4");
+
+        Wallet result = walletService.transfer(request);
+
+        assertEquals(0, new BigDecimal("1000.00").compareTo(result.getBalance()));
+        verify(transactionRepository, never()).save(any());
+        verify(ledgerEntryRepository, never()).save(any());
+        verify(walletRepository, never()).save(any());
+    }
+}

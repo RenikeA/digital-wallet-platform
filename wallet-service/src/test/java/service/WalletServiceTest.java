@@ -24,9 +24,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class WalletServiceTest {
@@ -149,5 +148,39 @@ class WalletServiceTest {
         verify(transactionRepository, never()).save(any());
         verify(ledgerEntryRepository, never()).save(any());
         verify(walletRepository, never()).save(any());
+    }
+
+    @Test
+    void transfer_whenValid_movesMoneyAndSavesOneTransactionAndTwoEntries() {
+        UUID sourceId = UUID.randomUUID();
+        UUID destinationId = UUID.randomUUID();
+
+        Wallet sourceWallet = Wallet.builder()
+                .id(sourceId)
+                .currency("NGN")
+                .balance(new BigDecimal("1000.00"))
+                .status(WalletStatus.ACTIVE)
+                .build();
+
+        Wallet destinationWallet = Wallet.builder()
+                .id(destinationId)
+                .currency("NGN")
+                .balance(new BigDecimal("500.00"))
+                .status(WalletStatus.ACTIVE)
+                .build();
+
+        when(walletRepository.findById(sourceId)).thenReturn(Optional.of(sourceWallet));
+        when(walletRepository.findById(destinationId)).thenReturn(Optional.of(destinationWallet));
+        when(transactionRepository.findByIdempotencyKey("key-5")).thenReturn(Optional.empty());
+
+        TransferRequest request = new TransferRequest(sourceId, destinationId, new BigDecimal("100.00"), "key-5");
+
+        Wallet result = walletService.transfer(request);
+
+        assertEquals(0, new BigDecimal("900.00").compareTo(result.getBalance()));
+        assertEquals(0, new BigDecimal("600.00").compareTo(destinationWallet.getBalance()));
+        verify(transactionRepository, times(1)).save(any());
+        verify(ledgerEntryRepository, times(2)).save(any());
+        verify(walletRepository, times(2)).save(any());
     }
 }

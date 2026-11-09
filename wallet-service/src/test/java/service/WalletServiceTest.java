@@ -9,23 +9,23 @@ import com.walletplatform.walletservice.dto.WithdrawRequest;
 import com.walletplatform.walletservice.exception.CurrencyMismatchException;
 import com.walletplatform.walletservice.exception.InsufficientFundsException;
 import com.walletplatform.walletservice.exception.SameWalletTransferException;
+import com.walletplatform.walletservice.exception.WalletAccessDeniedException;
 import com.walletplatform.walletservice.service.WalletService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class WalletServiceTest {
@@ -38,9 +38,11 @@ class WalletServiceTest {
 
     @Test
     void withdraw_whenBalanceTooLow_throwsInsufficientFunds() {
+        UUID callerId = UUID.randomUUID();
         UUID walletId = UUID.randomUUID();
         Wallet wallet = Wallet.builder()
                 .id(walletId)
+                .userId(callerId)
                 .currency("NGN")
                 .balance(new BigDecimal("100.00"))
                 .status(WalletStatus.ACTIVE)
@@ -51,26 +53,51 @@ class WalletServiceTest {
 
         WithdrawRequest request = new WithdrawRequest(walletId, new BigDecimal("500.00"), "key-1");
 
-        assertThrows(InsufficientFundsException.class, () -> walletService.withdraw(request));
+        assertThrows(InsufficientFundsException.class, () -> walletService.withdraw(callerId, request));
+        verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void withdraw_whenCallerIsNotOwner_throwsWalletAccessDenied() {
+        UUID walletId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        UUID strangerId = UUID.randomUUID();
+
+        Wallet wallet = Wallet.builder()
+                .id(walletId)
+                .userId(ownerId)
+                .currency("NGN")
+                .balance(new BigDecimal("1000.00"))
+                .status(WalletStatus.ACTIVE)
+                .build();
+
+        when(walletRepository.findById(walletId)).thenReturn(Optional.of(wallet));
+
+        WithdrawRequest request = new WithdrawRequest(walletId, new BigDecimal("100.00"), "key-6");
+
+        assertThrows(WalletAccessDeniedException.class, () -> walletService.withdraw(strangerId, request));
         verify(transactionRepository, never()).save(any());
     }
 
     @Test
     void transfer_whenSameWallet_throwsSameWalletTransferException() {
+        UUID callerId = UUID.randomUUID();
         UUID walletId = UUID.randomUUID();
 
         TransferRequest request = new TransferRequest(walletId, walletId, new BigDecimal("100.00"), "key-2");
 
-        assertThrows(SameWalletTransferException.class, () -> walletService.transfer(request));
+        assertThrows(SameWalletTransferException.class, () -> walletService.transfer(callerId, request));
     }
 
     @Test
     void transfer_whenCurrenciesDiffer_throwsCurrencyMismatchException() {
+        UUID callerId = UUID.randomUUID();
         UUID sourceId = UUID.randomUUID();
         UUID destinationId = UUID.randomUUID();
 
         Wallet sourceWallet = Wallet.builder()
                 .id(sourceId)
+                .userId(callerId)
                 .currency("NGN")
                 .balance(new BigDecimal("1000.00"))
                 .status(WalletStatus.ACTIVE)
@@ -89,17 +116,19 @@ class WalletServiceTest {
 
         TransferRequest request = new TransferRequest(sourceId, destinationId, new BigDecimal("100.00"), "key-3");
 
-        assertThrows(CurrencyMismatchException.class, () -> walletService.transfer(request));
+        assertThrows(CurrencyMismatchException.class, () -> walletService.transfer(callerId, request));
         verify(transactionRepository, never()).save(any());
     }
 
     @Test
     void transfer_whenIdempotencyKeyAlreadyUsed_returnsExistingResultWithoutMovingMoneyAgain() {
+        UUID callerId = UUID.randomUUID();
         UUID sourceId = UUID.randomUUID();
         UUID destinationId = UUID.randomUUID();
 
         Wallet sourceWallet = Wallet.builder()
                 .id(sourceId)
+                .userId(callerId)
                 .currency("NGN")
                 .balance(new BigDecimal("1000.00"))
                 .status(WalletStatus.ACTIVE)
@@ -142,7 +171,7 @@ class WalletServiceTest {
 
         TransferRequest request = new TransferRequest(sourceId, destinationId, new BigDecimal("100.00"), "key-4");
 
-        Wallet result = walletService.transfer(request);
+        Wallet result = walletService.transfer(callerId, request);
 
         assertEquals(0, new BigDecimal("1000.00").compareTo(result.getBalance()));
         verify(transactionRepository, never()).save(any());
@@ -152,11 +181,13 @@ class WalletServiceTest {
 
     @Test
     void transfer_whenValid_movesMoneyAndSavesOneTransactionAndTwoEntries() {
+        UUID callerId = UUID.randomUUID();
         UUID sourceId = UUID.randomUUID();
         UUID destinationId = UUID.randomUUID();
 
         Wallet sourceWallet = Wallet.builder()
                 .id(sourceId)
+                .userId(callerId)
                 .currency("NGN")
                 .balance(new BigDecimal("1000.00"))
                 .status(WalletStatus.ACTIVE)
@@ -175,7 +206,7 @@ class WalletServiceTest {
 
         TransferRequest request = new TransferRequest(sourceId, destinationId, new BigDecimal("100.00"), "key-5");
 
-        Wallet result = walletService.transfer(request);
+        Wallet result = walletService.transfer(callerId, request);
 
         assertEquals(0, new BigDecimal("900.00").compareTo(result.getBalance()));
         assertEquals(0, new BigDecimal("600.00").compareTo(destinationWallet.getBalance()));

@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class WalletService {
@@ -36,10 +37,10 @@ public class WalletService {
     private final TransactionRepository transactionRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
 
-    public Wallet createWallet(CreateWalletRequest request) {
+    public Wallet createWallet(UUID callerId, CreateWalletRequest request) {
         Wallet wallet = Wallet.builder()
                 .id(UUID.randomUUID())
-                .userId(request.getUserId())
+                .userId(callerId)
                 .currency(request.getCurrency())
                 .balance(BigDecimal.ZERO)
                 .status(WalletStatus.ACTIVE)
@@ -52,14 +53,11 @@ public class WalletService {
     }
 
     @Transactional
-    public Wallet deposit(DepositRequest request) {
-
-        // 1. Find the wallet by ID — throw if not found
+    public Wallet deposit(UUID callerId, DepositRequest request) {
         Wallet wallet = walletRepository.findById(request.getWalletId())
                 .orElseThrow(() -> new WalletNotFoundException(request.getWalletId()));
+        checkOwner(wallet, callerId);
 
-        // 1b. Idempotency: a retry with an already-used key returns the wallet instead of
-        //     inserting a duplicate transaction (which would violate the UNIQUE constraint)
         Optional<Transaction> existing = transactionRepository.findByIdempotencyKey(request.getIdempotencyKey());
         if (existing.isPresent()) {
             boolean sameDeposit = existing.get().getType() == TransactionType.DEPOSIT
@@ -72,15 +70,12 @@ public class WalletService {
             return wallet;
         }
 
-        // 2. Check wallet status is ACTIVE — throw if not
         if (wallet.getStatus() != WalletStatus.ACTIVE) {
             throw new WalletNotActiveException(wallet.getStatus());
         }
 
-        // 3. Calculate new balance
         BigDecimal newBalance = wallet.getBalance().add(request.getAmount());
 
-        // 4. Build and save the Transaction
         Transaction transaction = Transaction.builder()
                 .id(UUID.randomUUID())
                 .type(TransactionType.DEPOSIT)
@@ -90,7 +85,6 @@ public class WalletService {
                 .build();
         transactionRepository.save(transaction);
 
-        // 5. Build and save the LedgerEntry
         LedgerEntry ledgerEntry = LedgerEntry.builder()
                 .id(UUID.randomUUID())
                 .wallet(wallet)
@@ -102,18 +96,16 @@ public class WalletService {
                 .build();
         ledgerEntryRepository.save(ledgerEntry);
 
-        // 6. Update wallet balance and save
         wallet.setBalance(newBalance);
         return walletRepository.save(wallet);
     }
-    @Transactional
-    public Wallet withdraw(WithdrawRequest request) {
 
-        // 1. Find the wallet by ID, throw if not found
+    @Transactional
+    public Wallet withdraw(UUID callerId, WithdrawRequest request) {
         Wallet wallet = walletRepository.findById(request.getWalletId())
                 .orElseThrow(() -> new WalletNotFoundException(request.getWalletId()));
+        checkOwner(wallet, callerId);
 
-        // 2. Idempotency: a retry with an already-used key returns the wallet
         Optional<Transaction> existing = transactionRepository.findByIdempotencyKey(request.getIdempotencyKey());
         if (existing.isPresent()) {
             boolean sameWithdrawal = existing.get().getType() == TransactionType.WITHDRAWAL
@@ -126,20 +118,16 @@ public class WalletService {
             return wallet;
         }
 
-        // 3. Check the wallet is ACTIVE
         if (wallet.getStatus() != WalletStatus.ACTIVE) {
             throw new WalletNotActiveException(wallet.getStatus());
         }
 
-        // 4. Check there are enough funds
         if (wallet.getBalance().compareTo(request.getAmount()) < 0) {
             throw new InsufficientFundsException(wallet.getBalance(), request.getAmount());
         }
 
-        // 5. Work out the new balance, subtract this time
         BigDecimal newBalance = wallet.getBalance().subtract(request.getAmount());
 
-        // 6. Save the Transaction with type WITHDRAWAL
         Transaction transaction = Transaction.builder()
                 .id(UUID.randomUUID())
                 .type(TransactionType.WITHDRAWAL)
@@ -149,7 +137,6 @@ public class WalletService {
                 .build();
         transactionRepository.save(transaction);
 
-        // 7. Save the LedgerEntry with type DEBIT
         LedgerEntry ledgerEntry = LedgerEntry.builder()
                 .id(UUID.randomUUID())
                 .wallet(wallet)
@@ -161,26 +148,24 @@ public class WalletService {
                 .build();
         ledgerEntryRepository.save(ledgerEntry);
 
-        // 8. Update the wallet balance and save
         wallet.setBalance(newBalance);
         return walletRepository.save(wallet);
     }
 
     @Transactional
-    public Wallet transfer(TransferRequest request) {
-
-        // 1. Source and destination must be different wallets
+    public Wallet transfer(UUID callerId, TransferRequest request) {
         if (request.getSourceWalletId().equals(request.getDestinationWalletId())) {
             throw new SameWalletTransferException();
         }
 
-        // 2. Find both wallets
         Wallet sourceWallet = walletRepository.findById(request.getSourceWalletId())
                 .orElseThrow(() -> new WalletNotFoundException(request.getSourceWalletId()));
         Wallet destinationWallet = walletRepository.findById(request.getDestinationWalletId())
                 .orElseThrow(() -> new WalletNotFoundException(request.getDestinationWalletId()));
 
-        // 3. Idempotency: the same key with the same transfer returns the source wallet
+        // only the sender's wallet must belong to the caller
+        checkOwner(sourceWallet, callerId);
+
         Optional<Transaction> existing = transactionRepository.findByIdempotencyKey(request.getIdempotencyKey());
         if (existing.isPresent()) {
             List<LedgerEntry> entries = ledgerEntryRepository.findByTransaction(existing.get());
@@ -204,7 +189,6 @@ public class WalletService {
             return sourceWallet;
         }
 
-        // 4. Both wallets must be ACTIVE
         if (sourceWallet.getStatus() != WalletStatus.ACTIVE) {
             throw new WalletNotActiveException(sourceWallet.getStatus());
         }
@@ -212,21 +196,17 @@ public class WalletService {
             throw new WalletNotActiveException(destinationWallet.getStatus());
         }
 
-        // 5. Both wallets must use the same currency
         if (!sourceWallet.getCurrency().equals(destinationWallet.getCurrency())) {
             throw new CurrencyMismatchException(sourceWallet.getCurrency(), destinationWallet.getCurrency());
         }
 
-        // 6. The source wallet must have enough money
         if (sourceWallet.getBalance().compareTo(request.getAmount()) < 0) {
             throw new InsufficientFundsException(sourceWallet.getBalance(), request.getAmount());
         }
 
-        // 7. Work out both new balances
         BigDecimal sourceNewBalance = sourceWallet.getBalance().subtract(request.getAmount());
         BigDecimal destinationNewBalance = destinationWallet.getBalance().add(request.getAmount());
 
-        // 8. Save ONE transaction and TWO ledger entries
         Transaction transaction = Transaction.builder()
                 .id(UUID.randomUUID())
                 .type(TransactionType.TRANSFER)
@@ -259,7 +239,6 @@ public class WalletService {
         ledgerEntryRepository.save(debitEntry);
         ledgerEntryRepository.save(creditEntry);
 
-        // 9. Update both wallet balances
         sourceWallet.setBalance(sourceNewBalance);
         destinationWallet.setBalance(destinationNewBalance);
         walletRepository.save(sourceWallet);
@@ -269,15 +248,19 @@ public class WalletService {
     }
 
     @Transactional(readOnly = true)
-    public Wallet getWallet(UUID id) {
-        return walletRepository.findById(id)
+    public Wallet getWallet(UUID callerId, UUID id) {
+        Wallet wallet = walletRepository.findById(id)
                 .orElseThrow(() -> new WalletNotFoundException(id));
+        checkOwner(wallet, callerId);
+        return wallet;
     }
 
     @Transactional(readOnly = true)
-    public Page<LedgerEntryResponse> getTransactions(UUID walletId, EntryType type, LocalDate from, LocalDate to, int page, int size) {
-        walletRepository.findById(walletId)
+    public Page<LedgerEntryResponse> getTransactions(UUID callerId, UUID walletId, EntryType type,
+                                                     LocalDate from, LocalDate to, int page, int size) {
+        Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new WalletNotFoundException(walletId));
+        checkOwner(wallet, callerId);
 
         int safeSize = Math.min(size, 100);
         Pageable pageable = PageRequest.of(page, safeSize, Sort.by("createdAt").descending());
@@ -304,9 +287,10 @@ public class WalletService {
     }
 
     @Transactional(readOnly = true)
-    public StatementResponse getStatement(UUID walletId, LocalDate from, LocalDate to) {
+    public StatementResponse getStatement(UUID callerId, UUID walletId, LocalDate from, LocalDate to) {
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new WalletNotFoundException(walletId));
+        checkOwner(wallet, callerId);
 
         if (from.isAfter(to)) {
             throw new InvalidDateRangeException();
@@ -315,13 +299,11 @@ public class WalletService {
         LocalDateTime start = from.atStartOfDay();
         LocalDateTime end = to.plusDays(1).atStartOfDay();
 
-        // entries inside the period, oldest first
         Specification<LedgerEntry> inPeriod = LedgerEntrySpecifications.forWallet(walletId)
                 .and(LedgerEntrySpecifications.createdFrom(start))
                 .and(LedgerEntrySpecifications.createdBefore(end));
         List<LedgerEntry> entries = ledgerEntryRepository.findAll(inPeriod, Sort.by("createdAt").ascending());
 
-        // opening balance: balanceAfter of the last entry before the period, or 0 if there is none
         Specification<LedgerEntry> before = LedgerEntrySpecifications.forWallet(walletId)
                 .and(LedgerEntrySpecifications.createdBefore(start));
         Pageable latestOnly = PageRequest.of(0, 1, Sort.by("createdAt").descending());
@@ -355,5 +337,11 @@ public class WalletService {
 
         return new StatementResponse(walletId, wallet.getCurrency(), from, to,
                 openingBalance, totalCredits, totalDebits, closingBalance, entryResponses);
+    }
+
+    private void checkOwner(Wallet wallet, UUID callerId) {
+        if (!wallet.getUserId().equals(callerId)) {
+            throw new WalletAccessDeniedException();
+        }
     }
 }

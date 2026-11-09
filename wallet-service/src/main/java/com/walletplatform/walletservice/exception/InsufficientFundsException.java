@@ -9,3 +9,4 @@ public class InsufficientFundsException extends RuntimeException {
         super("Insufficient funds. Balance: " + balance + ", requested: " + amount);
     }
 }
+

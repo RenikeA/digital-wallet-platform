@@ -54,4 +54,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleInvalidDateRange(InvalidDateRangeException ex, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
+
+    @ExceptionHandler(WalletAccessDeniedException.class)
+    public ResponseEntity<ApiError> handleWalletAccessDenied(WalletAccessDeniedException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+    }
 }

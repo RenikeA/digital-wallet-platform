@@ -19,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -49,26 +50,27 @@ public class  JwtAuthFilter extends OncePerRequestFilter {
 
         String email;
         String role;
+        UUID userId;
         try {
-            // Parse once: verifies signature and expiry, then read everything from the same claims
             Claims claims = jwtService.parseClaims(token);
             email = claims.getSubject();
             role = claims.get("role", String.class);
+            String userIdText = claims.get("userId", String.class);
+            userId = (userIdText == null) ? null : UUID.fromString(userIdText);
         } catch (JwtException | IllegalArgumentException e) {
             log.debug("Rejected JWT on {}: {}", request.getRequestURI(), e.getMessage());
             reject(request, response, "Invalid or expired token");
             return;
         }
 
-        // Refresh tokens carry no role claim; only access tokens may call wallet endpoints
-        if (email == null || email.isBlank() || role == null || role.isBlank()) {
+        if (email == null || email.isBlank() || role == null || role.isBlank() || userId == null) {
             reject(request, response, "Access token required");
             return;
         }
 
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(email,
+                    new UsernamePasswordAuthenticationToken(userId,
                             null,
                             Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
                     );

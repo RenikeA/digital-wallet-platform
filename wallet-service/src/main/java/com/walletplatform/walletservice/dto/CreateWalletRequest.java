@@ -11,9 +11,6 @@ import java.util.UUID;
 @Setter
 public class CreateWalletRequest {
 
-    @NotNull(message = "User ID is required")
-    private UUID userId;
-
     @NotBlank(message = "Currency is required")
     private String currency;
 }

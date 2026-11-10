@@ -6,6 +6,7 @@ import com.walletplatform.repository.TransactionRepository;
 import com.walletplatform.repository.WalletRepository;
 import com.walletplatform.walletservice.dto.TransferRequest;
 import com.walletplatform.walletservice.dto.WithdrawRequest;
+import com.walletplatform.walletservice.event.WalletEventPublisher;
 import com.walletplatform.walletservice.exception.CurrencyMismatchException;
 import com.walletplatform.walletservice.exception.InsufficientFundsException;
 import com.walletplatform.walletservice.exception.SameWalletTransferException;
@@ -27,12 +28,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+
 @ExtendWith(MockitoExtension.class)
 class WalletServiceTest {
 
     @Mock private WalletRepository walletRepository;
     @Mock private TransactionRepository transactionRepository;
     @Mock private LedgerEntryRepository ledgerEntryRepository;
+    @Mock private WalletEventPublisher eventPublisher;
 
     @InjectMocks private WalletService walletService;
 

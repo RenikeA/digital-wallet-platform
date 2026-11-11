@@ -206,6 +206,7 @@ class WalletServiceTest {
         when(walletRepository.findById(sourceId)).thenReturn(Optional.of(sourceWallet));
         when(walletRepository.findById(destinationId)).thenReturn(Optional.of(destinationWallet));
         when(transactionRepository.findByIdempotencyKey("key-5")).thenReturn(Optional.empty());
+        when(walletRepository.save(any(Wallet.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         TransferRequest request = new TransferRequest(sourceId, destinationId, new BigDecimal("100.00"), "key-5");
 
@@ -216,5 +217,6 @@ class WalletServiceTest {
         verify(transactionRepository, times(1)).save(any());
         verify(ledgerEntryRepository, times(2)).save(any());
         verify(walletRepository, times(2)).save(any());
+        verify(eventPublisher, times(2)).publish(any());
     }
 }

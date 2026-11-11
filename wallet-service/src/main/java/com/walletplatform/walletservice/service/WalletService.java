@@ -106,7 +106,13 @@ public class WalletService {
         ledgerEntryRepository.save(ledgerEntry);
 
         wallet.setBalance(newBalance);
-        return walletRepository.save(wallet);
+        Wallet saved = walletRepository.save(wallet);
+
+        eventPublisher.publish(new WalletEvent(
+                UUID.randomUUID(), "MONEY_DEPOSITED", saved.getId(), saved.getUserId(),
+                request.getAmount(), saved.getCurrency(), LocalDateTime.now()));
+
+        return saved;
     }
 
     @Transactional
@@ -158,7 +164,11 @@ public class WalletService {
         ledgerEntryRepository.save(ledgerEntry);
 
         wallet.setBalance(newBalance);
-        return walletRepository.save(wallet);
+        Wallet saved = walletRepository.save(wallet);
+        eventPublisher.publish(new WalletEvent(
+                UUID.randomUUID(), "MONEY_WITHDRAWN", saved.getId(), saved.getUserId(),
+                request.getAmount(), saved.getCurrency(), LocalDateTime.now()));
+        return saved;
     }
 
     @Transactional
@@ -250,10 +260,18 @@ public class WalletService {
 
         sourceWallet.setBalance(sourceNewBalance);
         destinationWallet.setBalance(destinationNewBalance);
-        walletRepository.save(sourceWallet);
-        walletRepository.save(destinationWallet);
+        Wallet savedSource = walletRepository.save(sourceWallet);
+        Wallet savedDestination =   walletRepository.save(destinationWallet);
 
-        return sourceWallet;
+        eventPublisher.publish(new WalletEvent(
+                UUID.randomUUID(), "TRANSFER_SENT", savedSource.getId(), savedSource.getUserId(),
+                request.getAmount(), savedSource.getCurrency(), LocalDateTime.now()));
+
+        eventPublisher.publish(new WalletEvent(
+                UUID.randomUUID(), "TRANSFER_RECEIVED", savedDestination.getId(), savedDestination.getUserId(),
+                request.getAmount(), savedDestination.getCurrency(), LocalDateTime.now()));
+
+        return savedSource;
     }
 
     @Transactional(readOnly = true)

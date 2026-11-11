@@ -11,6 +11,8 @@ import com.walletplatform.repository.LedgerEntryRepository;
 import com.walletplatform.repository.TransactionRepository;
 import com.walletplatform.repository.WalletRepository;
 import com.walletplatform.walletservice.dto.*;
+import com.walletplatform.walletservice.event.WalletEvent;
+import com.walletplatform.walletservice.event.WalletEventPublisher;
 import com.walletplatform.walletservice.exception.*;
 import com.walletplatform.walletservice.specifications.LedgerEntrySpecifications;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ public class WalletService {
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
+    private final WalletEventPublisher eventPublisher;
 
     public Wallet createWallet(UUID callerId, CreateWalletRequest request) {
         Wallet wallet = Wallet.builder()
@@ -49,7 +52,13 @@ public class WalletService {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        return walletRepository.save(wallet);
+        Wallet saved = walletRepository.save(wallet);
+
+        eventPublisher.publish(new WalletEvent(
+                UUID.randomUUID(), "WALLET_CREATED", saved.getId(), saved.getUserId(),
+                null, saved.getCurrency(), LocalDateTime.now()));
+
+        return saved;
     }
 
     @Transactional
@@ -97,7 +106,13 @@ public class WalletService {
         ledgerEntryRepository.save(ledgerEntry);
 
         wallet.setBalance(newBalance);
-        return walletRepository.save(wallet);
+        Wallet saved = walletRepository.save(wallet);
+
+        eventPublisher.publish(new WalletEvent(
+                UUID.randomUUID(), "MONEY_DEPOSITED", saved.getId(), saved.getUserId(),
+                request.getAmount(), saved.getCurrency(), LocalDateTime.now()));
+
+        return saved;
     }
 
     @Transactional
@@ -149,7 +164,11 @@ public class WalletService {
         ledgerEntryRepository.save(ledgerEntry);
 
         wallet.setBalance(newBalance);
-        return walletRepository.save(wallet);
+        Wallet saved = walletRepository.save(wallet);
+        eventPublisher.publish(new WalletEvent(
+                UUID.randomUUID(), "MONEY_WITHDRAWN", saved.getId(), saved.getUserId(),
+                request.getAmount(), saved.getCurrency(), LocalDateTime.now()));
+        return saved;
     }
 
     @Transactional
@@ -241,10 +260,18 @@ public class WalletService {
 
         sourceWallet.setBalance(sourceNewBalance);
         destinationWallet.setBalance(destinationNewBalance);
-        walletRepository.save(sourceWallet);
-        walletRepository.save(destinationWallet);
+        Wallet savedSource = walletRepository.save(sourceWallet);
+        Wallet savedDestination =   walletRepository.save(destinationWallet);
 
-        return sourceWallet;
+        eventPublisher.publish(new WalletEvent(
+                UUID.randomUUID(), "TRANSFER_SENT", savedSource.getId(), savedSource.getUserId(),
+                request.getAmount(), savedSource.getCurrency(), LocalDateTime.now()));
+
+        eventPublisher.publish(new WalletEvent(
+                UUID.randomUUID(), "TRANSFER_RECEIVED", savedDestination.getId(), savedDestination.getUserId(),
+                request.getAmount(), savedDestination.getCurrency(), LocalDateTime.now()));
+
+        return savedSource;
     }
 
     @Transactional(readOnly = true)

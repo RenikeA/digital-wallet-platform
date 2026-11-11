@@ -13,6 +13,13 @@ services:
     volumes:
       - wallet_pgdata:/var/lib/postgresql/data
 
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+
+
   auth-postgres:
    image: postgres:16
    container_name: auth-postgres

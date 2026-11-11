@@ -6,6 +6,7 @@ import com.walletplatform.repository.TransactionRepository;
 import com.walletplatform.repository.WalletRepository;
 import com.walletplatform.walletservice.dto.TransferRequest;
 import com.walletplatform.walletservice.dto.WithdrawRequest;
+import com.walletplatform.walletservice.event.WalletEventPublisher;
 import com.walletplatform.walletservice.exception.CurrencyMismatchException;
 import com.walletplatform.walletservice.exception.InsufficientFundsException;
 import com.walletplatform.walletservice.exception.SameWalletTransferException;
@@ -27,12 +28,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+
 @ExtendWith(MockitoExtension.class)
 class WalletServiceTest {
 
     @Mock private WalletRepository walletRepository;
     @Mock private TransactionRepository transactionRepository;
     @Mock private LedgerEntryRepository ledgerEntryRepository;
+    @Mock private WalletEventPublisher eventPublisher;
 
     @InjectMocks private WalletService walletService;
 
@@ -203,6 +206,7 @@ class WalletServiceTest {
         when(walletRepository.findById(sourceId)).thenReturn(Optional.of(sourceWallet));
         when(walletRepository.findById(destinationId)).thenReturn(Optional.of(destinationWallet));
         when(transactionRepository.findByIdempotencyKey("key-5")).thenReturn(Optional.empty());
+        when(walletRepository.save(any(Wallet.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         TransferRequest request = new TransferRequest(sourceId, destinationId, new BigDecimal("100.00"), "key-5");
 
@@ -213,5 +217,6 @@ class WalletServiceTest {
         verify(transactionRepository, times(1)).save(any());
         verify(ledgerEntryRepository, times(2)).save(any());
         verify(walletRepository, times(2)).save(any());
+        verify(eventPublisher, times(2)).publish(any());
     }
 }

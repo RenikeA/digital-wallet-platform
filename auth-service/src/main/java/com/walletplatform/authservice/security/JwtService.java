@@ -42,14 +42,6 @@ public class JwtService {
                 .signWith(getSigningKey())
                 .compact();
     }
-    private String buildToken(String email, long expiryMillis) {
-        return Jwts.builder()
-                .subject(email)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + expiryMillis))
-                .signWith(getSigningKey())
-                .compact();
-    }
 
     public String extractEmail(String token) {
         return extractClaim(token, Claims::getSubject);

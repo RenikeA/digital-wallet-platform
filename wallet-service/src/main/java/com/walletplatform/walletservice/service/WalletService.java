@@ -283,6 +283,11 @@ public class WalletService {
     }
 
     @Transactional(readOnly = true)
+    public List<Wallet> getMyWallets(UUID callerId) {
+        return walletRepository.findByUserId(callerId);
+    }
+
+    @Transactional(readOnly = true)
     public Page<LedgerEntryResponse> getTransactions(UUID callerId, UUID walletId, EntryType type,
                                                      LocalDate from, LocalDate to, int page, int size) {
         Wallet wallet = walletRepository.findById(walletId)
